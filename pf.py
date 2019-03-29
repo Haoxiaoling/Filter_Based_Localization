@@ -2,7 +2,6 @@ import numpy as np
 
 from utils import minimized_angle
 
-
 class ParticleFilter:
     def __init__(self, mean, cov, num_particles, alphas, beta):
         self.alphas = alphas
@@ -29,6 +28,17 @@ class ParticleFilter:
         marker_id: landmark ID
         """
         # YOUR IMPLEMENTATION HERE
+        particles = np.zeros((self.num_particles, 3))
+        weights = np.ones(self.num_particles)
+        for i in range(self.num_particles):
+            sigma = env.V(self.particles[i,:], u) @env.noise_from_motion(u, self.alphas) @ env.V(self.particles[i,:], u).T
+            particles[i,:] = np.random.multivariate_normal(env.forward(self.particles[i,:], u).ravel(),  sigma)
+
+            particles[i,2] = minimized_angle(particles[i,2])
+            dz = np.array(minimized_angle(env.observe(particles[i,:].ravel(), marker_id) - z)).reshape(-1, 1)
+            weights[i] = np.exp(-dz.T.dot(dz)/(2 *self.beta)) * self.weights[i]
+        weights = weights/np.sum(weights)
+        self.particles, self.weights = self.resample(particles, weights)
         mean, cov = self.mean_and_variance(self.particles)
         return mean, cov
 
@@ -41,6 +51,16 @@ class ParticleFilter:
         """
         new_particles, new_weights = particles, weights
         # YOUR IMPLEMENTATION HERE
+        r = (1.0/self.num_particles) * np.random.rand()
+        c = weights[0]
+        i = 0
+        for m in range(self.num_particles):
+            U = r + float(m)/self.num_particles
+            while U > c:
+                i = i + 1
+                c = c + weights[i]
+            new_particles[m, :] = particles[i, :]
+            new_weights[m] = weights[i]
         return new_particles, new_weights
 
     def mean_and_variance(self, particles):
