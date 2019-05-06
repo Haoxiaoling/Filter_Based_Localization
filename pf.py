@@ -31,8 +31,9 @@ class ParticleFilter:
         particles = np.zeros((self.num_particles, 3))
         weights = np.ones(self.num_particles)
         for i in range(self.num_particles):
-            sigma = env.V(self.particles[i,:], u) @env.noise_from_motion(u, self.alphas) @ env.V(self.particles[i,:], u).T
+            sigma = env.V(self.particles[i,:], u) @env.noise_from_motion(u, self.alphas) @ env.V(self.particles[i,:], u).T# + env.G(self.particles[i,:], u) @ self.sigma @ env.G(self.particles[i,:], u).T
             particles[i,:] = np.random.multivariate_normal(env.forward(self.particles[i,:], u).ravel(),  sigma)
+            
             particles[i,2] = minimized_angle(particles[i,2])
             dz = np.array(minimized_angle(env.observe(particles[i,:].ravel(), marker_id) - z)).reshape(-1, 1)
             weights[i] = env.likelihood(dz, self.beta)# * self.weights[i]
@@ -62,7 +63,7 @@ class ParticleFilter:
                 c = c + weights[i]
             new_particles[m, :] = particles[i, :]
             new_weights[m] = weights[i]
-        # new_weights = new_weights/np.sum(new_weights)
+        new_weights = new_weights/np.sum(new_weights)
         return new_particles, new_weights
 
     def mean_and_variance(self, particles):
